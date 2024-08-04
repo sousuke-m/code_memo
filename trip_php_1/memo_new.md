@@ -1011,3 +1011,74 @@ try {
 ```
 
 これらのファイルを適切に配置して、必要に応じてデータベース接続情報（`db.php`）を設定し、セキュリティ対策を強化したり、エラーハンドリングを追加することで、安全に運用できるウェブアプリケーションを構築することができます。
+
+## add_plan.phpも見せて
+
+以下に、`add_plan.php` ファイルを示します。これは新しい旅行計画を追加するためのフォームを提供します。ユーザーが計画のタイトル、説明、日付、およびオプションで画像をアップロードできるようになっています。
+
+```php
+<?php
+session_start();
+include 'db.php';
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $user_id = $_SESSION['user_id'];
+    $title = $_POST['title'];
+    $description = $_POST['description'];
+    $date = $_POST['date'];
+    $imageUrl = '';
+
+    if (isset($_FILES['image']) && $_FILES['image']['error'] == UPLOAD_ERR_OK) {
+        $tmpName = $_FILES['image']['tmp_name'];
+        $name = basename($_FILES['image']['name']);
+        $uploadDir = 'uploads/';
+        $uploadFile = $uploadDir . $name;
+
+        if (move_uploaded_file($tmpName, $uploadFile)) {
+            $imageUrl = $uploadFile;
+        }
+    }
+
+    $stmt = $pdo->prepare("INSERT INTO plans (user_id, title, description, date, image_url) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute([$user_id, $title, $description, $date, $imageUrl]);
+
+    header('Location: index.php');
+    exit;
+}
+?>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>新規計画追加</title>
+</head>
+<body>
+    <h1>新規計画追加</h1>
+    <form action="add_plan.php" method="post" enctype="multipart/form-data">
+        <label for="title">タイトル:</label>
+        <input type="text" id="title" name="title" required>
+        <br>
+        <label for="description">説明:</label>
+        <textarea id="description" name="description"></textarea>
+        <br>
+        <label for="date">日付:</label>
+        <input type="date" id="date" name="date">
+        <br>
+        <label for="image">画像:</label>
+        <input type="file" id="image" name="image">
+        <br>
+        <button type="submit">追加</button>
+    </form>
+    <a href="index.php">戻る</a>
+</body>
+</html>
+```
+
+このファイルでは、フォームから送信されたデータを処理し、データベースに新しい計画を挿入します。画像をアップロードする際には、`enctype="multipart/form-data"` 属性をフォームに追加し、ファイルアップロードを可能にします。
+
+このファイルを `add_plan.php` として保存し、他のファイルと同じディレクトリに配置することで、旅行計画を追加するための完全な機能を持ったウェブアプリケーションを構築できます。
