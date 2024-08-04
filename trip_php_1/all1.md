@@ -1191,3 +1191,145 @@ $action = isset($plan) ? 'update' : 'add';
 - **フォームのアクション**: `/handle_plan.php` に POST リクエストを送信します。このファイルでは、追加または更新の処理が行われることを前提としています。
 
 このファイルは、ユーザーに旅行の予定を追加または編集するためのインターフェースを提供し、フォームのデータはサーバーサイドで処理されるための準備をしています。必要に応じて、デザインや機能をカスタマイズできます。
+
+## 退会機能を追加して
+
+退会機能を追加するためには、ユーザーがアカウントを削除できるようにする機能を実装する必要があります。以下に、退会機能を追加するためのステップとコードの例を示します。
+
+### 1. **退会機能のコントローラ** (`/src/controllers/UserController.php`)
+
+退会機能を管理するコントローラを追加します。このコントローラは、ユーザーのアカウント削除を処理します。
+
+#### `/src/controllers/UserController.php`
+
+```php
+<?php
+
+class UserController {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    /**
+     * ユーザーアカウントを削除する
+     *
+     * @param int $userId
+     * @return bool
+     */
+    public function deleteUser($userId) {
+        $this->pdo->beginTransaction();
+        try {
+            // 予定の削除
+            $stmt = $this->pdo->prepare("DELETE FROM plans WHERE trip_id IN (SELECT id FROM trips WHERE user_id = ?)");
+            $stmt->execute([$userId]);
+
+            // 旅行の削除
+            $stmt = $this->pdo->prepare("DELETE FROM trips WHERE user_id = ?");
+            $stmt->execute([$userId]);
+
+            // ユーザーの削除
+            $stmt = $this->pdo->prepare("DELETE FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+
+            $this->pdo->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            return false;
+        }
+    }
+}
+```
+
+### 2. **退会機能のビュー** (`/src/views/delete_account.php`)
+
+ユーザーが退会を確認するためのビューを作成します。
+
+#### `/src/views/delete_account.php`
+
+```php
+<?php
+// 現在のユーザーIDを取得する
+$userId = $_SESSION['user_id'];
+?>
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アカウント削除</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <h1>アカウント削除</h1>
+    </header>
+
+    <main>
+        <form action="/handle_delete_account.php" method="post">
+            <p>この操作は元に戻せません。本当にアカウントを削除しますか？</p>
+            <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($userId); ?>">
+            <button type="submit" name="confirm_delete">はい、削除します</button>
+            <a href="/index.php">キャンセル</a>
+        </form>
+    </main>
+
+    <footer>
+        <p><a href="/index.php">ホームに戻る</a></p>
+    </footer>
+</body>
+</html>
+```
+
+### 3. **退会処理のハンドラー** (`/handle_delete_account.php`)
+
+退会リクエストを処理するスクリプトを作成します。
+
+#### `/handle_delete_account.php`
+
+```php
+<?php
+session_start();
+require_once '../config/database.php';
+require_once '../src/controllers/UserController.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['confirm_delete'])) {
+    $userId = $_POST['user_id'];
+
+    $userController = new UserController($pdo);
+    if ($userController->deleteUser($userId)) {
+        // ログアウトしてセッションを破棄する
+        session_unset();
+        session_destroy();
+        header('Location: /index.php');
+        exit;
+    } else {
+        echo 'アカウントの削除に失敗しました。';
+    }
+} else {
+    header('Location: /index.php');
+    exit;
+}
+```
+
+### 4. **ナビゲーションメニューの追加**
+
+ユーザーが退会ページにアクセスできるように、ナビゲーションメニューにリンクを追加します。例えば、`/src/views/header.php` に次のようなリンクを追加します。
+
+#### `/src/views/header.php` (ナビゲーションメニューの一部)
+
+```php
+<nav>
+    <a href="/index.php">ホーム</a>
+    <a href="/src/views/plan_form.php">予定を追加</a>
+    <a href="/src/views/delete_account.php">アカウント削除</a>
+    <a href="/logout.php">ログアウト</a>
+</nav>
+```
+
+### まとめ
+
+これで、退会機能が実装されました。ユーザーは、アカウント削除ページから退会手続きを行うことができ、アカウントが削除されるとともに、関連する旅行や予定も削除されます。セッションは破棄され、ユーザーはログアウト状態になります。
