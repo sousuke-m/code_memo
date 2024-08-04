@@ -960,3 +960,167 @@ class Trip {
 - `deleteTrip($tripId)`: 指定された旅行をデータベースから削除します。
 
 これらのモデルクラスは、データベースとのやり取りを簡単にし、コントローラや他のクラスで再利用するためのものです。必要に応じて、さらにメソッドを追加して機能を拡張できます。
+
+## /src/controllers/PlanController.phpと/src/models/Plan.phpを見せてください
+
+以下は、`/src/controllers/PlanController.php` と `/src/models/Plan.php` の基本的な実装例です。これらのファイルは、旅行の予定に関連する機能を管理するためのものです。
+
+### `/src/controllers/PlanController.php`
+
+```php
+<?php
+
+class PlanController {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    /**
+     * 予定を追加する
+     *
+     * @param int $tripId
+     * @param string $title
+     * @param string $description
+     * @param string $date
+     * @return bool
+     */
+    public function addPlan($tripId, $title, $description, $date) {
+        $stmt = $this->pdo->prepare("INSERT INTO plans (trip_id, title, description, date) VALUES (?, ?, ?, ?)");
+        return $stmt->execute([$tripId, $title, $description, $date]);
+    }
+
+    /**
+     * 特定の旅行に関連する予定を取得する
+     *
+     * @param int $tripId
+     * @return array
+     */
+    public function getPlansByTrip($tripId) {
+        $stmt = $this->pdo->prepare("SELECT * FROM plans WHERE trip_id = ? ORDER BY date ASC");
+        $stmt->execute([$tripId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * 予定の順序を更新する
+     *
+     * @param array $order
+     * @return bool
+     */
+    public function updatePlanOrder($order) {
+        $pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare("UPDATE plans SET sort_order = ? WHERE id = ?");
+            foreach ($order as $sortOrder => $planId) {
+                $stmt->execute([$sortOrder, $planId]);
+            }
+            $pdo->commit();
+            return true;
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            return false;
+        }
+    }
+
+    /**
+     * 予定を削除する
+     *
+     * @param int $planId
+     * @return bool
+     */
+    public function deletePlan($planId) {
+        $stmt = $this->pdo->prepare("DELETE FROM plans WHERE id = ?");
+        return $stmt->execute([$planId]);
+    }
+}
+```
+
+#### 説明
+
+- **addPlan($tripId, $title, $description, $date)**: 指定した旅行IDに関連する新しい予定を追加します。
+- **getPlansByTrip($tripId)**: 指定した旅行IDに関連する予定を取得し、日付順に並べます。
+- **updatePlanOrder($order)**: 予定の順序を更新します。`$order` は、予定IDとその新しい順序を含む配列です。
+- **deletePlan($planId)**: 指定した予定IDに関連する予定を削除します。
+
+### `/src/models/Plan.php`
+
+```php
+<?php
+
+class Plan {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    /**
+     * 予定を追加する
+     *
+     * @param int $tripId
+     * @param string $title
+     * @param string $description
+     * @param string $date
+     * @return bool
+     */
+    public function add($tripId, $title, $description, $date) {
+        $stmt = $this->pdo->prepare("INSERT INTO plans (trip_id, title, description, date) VALUES (?, ?, ?, ?)");
+        return $stmt->execute([$tripId, $title, $description, $date]);
+    }
+
+    /**
+     * 特定の旅行に関連する予定を取得する
+     *
+     * @param int $tripId
+     * @return array
+     */
+    public function getByTrip($tripId) {
+        $stmt = $this->pdo->prepare("SELECT * FROM plans WHERE trip_id = ? ORDER BY date ASC");
+        $stmt->execute([$tripId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * 予定の順序を更新する
+     *
+     * @param array $order
+     * @return bool
+     */
+    public function updateOrder($order) {
+        $this->pdo->beginTransaction();
+        try {
+            $stmt = $this->pdo->prepare("UPDATE plans SET sort_order = ? WHERE id = ?");
+            foreach ($order as $sortOrder => $planId) {
+                $stmt->execute([$sortOrder, $planId]);
+            }
+            $this->pdo->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->pdo->rollBack();
+            return false;
+        }
+    }
+
+    /**
+     * 予定を削除する
+     *
+     * @param int $planId
+     * @return bool
+     */
+    public function delete($planId) {
+        $stmt = $this->pdo->prepare("DELETE FROM plans WHERE id = ?");
+        return $stmt->execute([$planId]);
+    }
+}
+```
+
+#### 説明
+
+- **add($tripId, $title, $description, $date)**: 指定した旅行IDに新しい予定を追加します。
+- **getByTrip($tripId)**: 特定の旅行IDに関連する予定を取得し、日付順に並べます。
+- **updateOrder($order)**: 予定の順序を更新します。`$order` は予定IDとその新しい順序を含む配列です。
+- **delete($planId)**: 指定した予定IDに関連する予定を削除します。
+
+これらのクラスを使うことで、旅行に関連する予定の管理が容易になります。コントローラとモデルの分離により、ビジネスロジックとデータ処理が整理され、コードの保守性が向上します。
