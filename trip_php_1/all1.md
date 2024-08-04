@@ -742,3 +742,86 @@ This project is licensed under the MIT License.
 ```
 
 これで、基本的な旅行計画アプリケーションのディレクトリ構造と主要なファイルが整いました。これをベースに、さらに機能を追加したり、デザインをカスタマイズしたりできます。
+
+## /public/js/scripts.jsを教えてください。
+
+`/public/js/scripts.js` は、旅行計画アプリケーションのインタラクティブな要素を追加するためのJavaScriptファイルです。以下は、基本的なドラッグ＆ドロップ機能や、予定の順序を変更するためのスクリプトの例です。このスクリプトは、ドラッグ＆ドロップのライブラリである `SortableJS` を利用して、予定をドラッグ＆ドロップで並び替えられるようにするものです。
+
+### `/public/js/scripts.js`
+
+```javascript
+document.addEventListener('DOMContentLoaded', (event) => {
+    // SortableJSライブラリを利用して、予定のリストをドラッグ＆ドロップで並び替え可能にする
+    const sortable = new Sortable(document.querySelector('#plans-list'), {
+        animation: 150,
+        onEnd: function (evt) {
+            // 並び替え後の処理
+            const order = Array.from(evt.from.children).map(child => child.dataset.planId);
+            // 新しい順序をサーバーに送信して保存
+            fetch('/update_plan_order.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ order: order }),
+            }).then(response => response.json())
+              .then(data => {
+                  if (!data.success) {
+                      console.error('Order update failed:', data.message);
+                  }
+              })
+              .catch(error => {
+                  console.error('Error:', error);
+              });
+        }
+    });
+
+    // フォームの動的追加（例: 予定の追加）
+    document.querySelector('#add-plan-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        fetch('/add_plan.php', {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  // 予定をリストに追加する処理
+                  const newPlan = document.createElement('li');
+                  newPlan.dataset.planId = data.planId;
+                  newPlan.innerHTML = `
+                      <span>${data.planTitle}</span>
+                      <p>${data.planDescription}</p>
+                  `;
+                  document.querySelector('#plans-list').appendChild(newPlan);
+                  this.reset(); // フォームをリセット
+              } else {
+                  console.error('Plan addition failed:', data.message);
+              }
+          })
+          .catch(error => {
+              console.error('Error:', error);
+          });
+    });
+});
+```
+
+### 説明
+
+1. **SortableJSの利用**: `SortableJS` ライブラリを使って、リストアイテム（予定）をドラッグ＆ドロップで並び替え可能にします。`#plans-list` は、予定のリストを含むHTML要素のIDです。`animation` は、ドラッグ中のアニメーションの速度です。
+
+2. **順序の保存**: 並び替えた後の予定の順序をサーバーに送信して保存します。`fetch` を使って、`/update_plan_order.php` にPOSTリクエストを送り、新しい順序をサーバーで処理します。
+
+3. **フォームの処理**: 新しい予定を追加するフォーム（`#add-plan-form`）をサーバーに送信し、追加された予定をリストに動的に追加します。サーバーからの応答を基に、新しい予定をリストに追加し、フォームをリセットします。
+
+### 必要なライブラリ
+
+- **SortableJS**: このライブラリを使用するには、CDNからライブラリを追加するか、プロジェクトにダウンロードして含める必要があります。CDNを使用する例は以下の通りです。
+
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
+```
+
+このスクリプトをプロジェクトに追加することで、ユーザーは旅行の予定をドラッグ＆ドロップで並び替え、動的に追加できるようになります。必要に応じて、さらに機能を追加したり、ユーザーインターフェースをカスタマイズしたりしてください。
+
