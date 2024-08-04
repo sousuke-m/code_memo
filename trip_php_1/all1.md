@@ -825,3 +825,138 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
 このスクリプトをプロジェクトに追加することで、ユーザーは旅行の予定をドラッグ＆ドロップで並び替え、動的に追加できるようになります。必要に応じて、さらに機能を追加したり、ユーザーインターフェースをカスタマイズしたりしてください。
 
+## /src/models/User.phpと/src/models/Trip.phpを全て教えてください。
+
+以下は、基本的なユーザーと旅行のモデルクラスの実装例です。これらのクラスは、データベースとのやり取りを抽象化し、ビジネスロジックを処理します。
+
+### `/src/models/User.php`
+
+```php
+<?php
+
+class User {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    /**
+     * ユーザーを登録する
+     *
+     * @param string $username
+     * @param string $password
+     * @param string $email
+     * @return bool
+     */
+    public function register($username, $password, $email) {
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $this->pdo->prepare("INSERT INTO users (username, password, email) VALUES (?, ?, ?)");
+        return $stmt->execute([$username, $passwordHash, $email]);
+    }
+
+    /**
+     * ユーザー名でユーザーを検索する
+     *
+     * @param string $username
+     * @return array|false
+     */
+    public function findByUsername($username) {
+        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE username = ?");
+        $stmt->execute([$username]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * ユーザーIDでユーザーを検索する
+     *
+     * @param int $userId
+     * @return array|false
+     */
+    public function findById($userId) {
+        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+}
+```
+
+#### 説明
+
+- `register($username, $password, $email)`: ユーザーを新規登録します。パスワードはハッシュ化して保存します。
+- `findByUsername($username)`: ユーザー名でユーザーを検索し、情報を返します。
+- `findById($userId)`: ユーザーIDでユーザーを検索し、情報を返します。
+
+### `/src/models/Trip.php`
+
+```php
+<?php
+
+class Trip {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    /**
+     * ユーザーの旅行リストを取得する
+     *
+     * @param int $userId
+     * @return array
+     */
+    public function getUserTrips($userId) {
+        $stmt = $this->pdo->prepare("SELECT * FROM trips WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * 新しい旅行を追加する
+     *
+     * @param int $userId
+     * @param string $tripName
+     * @param string $startDate
+     * @param string $endDate
+     * @return bool
+     */
+    public function addTrip($userId, $tripName, $startDate, $endDate) {
+        $stmt = $this->pdo->prepare("INSERT INTO trips (user_id, trip_name, start_date, end_date) VALUES (?, ?, ?, ?)");
+        return $stmt->execute([$userId, $tripName, $startDate, $endDate]);
+    }
+
+    /**
+     * 旅行の情報を更新する
+     *
+     * @param int $tripId
+     * @param string $tripName
+     * @param string $startDate
+     * @param string $endDate
+     * @return bool
+     */
+    public function updateTrip($tripId, $tripName, $startDate, $endDate) {
+        $stmt = $this->pdo->prepare("UPDATE trips SET trip_name = ?, start_date = ?, end_date = ? WHERE id = ?");
+        return $stmt->execute([$tripName, $startDate, $endDate, $tripId]);
+    }
+
+    /**
+     * 旅行を削除する
+     *
+     * @param int $tripId
+     * @return bool
+     */
+    public function deleteTrip($tripId) {
+        $stmt = $this->pdo->prepare("DELETE FROM trips WHERE id = ?");
+        return $stmt->execute([$tripId]);
+    }
+}
+```
+
+#### 説明
+
+- `getUserTrips($userId)`: 指定されたユーザーIDに関連する旅行リストを取得します。
+- `addTrip($userId, $tripName, $startDate, $endDate)`: 新しい旅行をデータベースに追加します。
+- `updateTrip($tripId, $tripName, $startDate, $endDate)`: 既存の旅行の情報を更新します。
+- `deleteTrip($tripId)`: 指定された旅行をデータベースから削除します。
+
+これらのモデルクラスは、データベースとのやり取りを簡単にし、コントローラや他のクラスで再利用するためのものです。必要に応じて、さらにメソッドを追加して機能を拡張できます。
