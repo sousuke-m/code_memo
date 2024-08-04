@@ -335,3 +335,410 @@ header("Location: login.php");
 
 この構造を基にして、アプリケーションを開発・拡張していくことができます。
 
+## 全てのファイルを見せてください。
+
+すべてのファイルを一度に見せるのは長大になるため、主要なファイルとディレクトリを含む完全な例を示します。以下は、基本的な機能を持つ旅行計画アプリケーションのディレクトリ構造とそのファイルの内容です。
+
+### ディレクトリ構造
+
+```
+/travel-planner
+├── /public
+│   ├── /css
+│   │   └── styles.css
+│   ├── /js
+│   │   └── scripts.js
+│   ├── /uploads
+│   ├── index.php
+│   ├── login.php
+│   ├── register.php
+│   ├── logout.php
+│   └── trip.php
+├── /src
+│   ├── /controllers
+│   │   ├── AuthController.php
+│   │   ├── TripController.php
+│   │   └── PlanController.php
+│   ├── /models
+│   │   ├── User.php
+│   │   ├── Trip.php
+│   │   └── Plan.php
+│   └── /views
+│       ├── header.php
+│       ├── footer.php
+│       ├── trip_form.php
+│       └── plan_form.php
+├── /config
+│   └── database.php
+├── /logs
+├── /tests
+├── .htaccess
+├── composer.json
+└── README.md
+```
+
+### 各ファイルの内容
+
+#### `/public/index.php` (トップページ)
+
+```php
+<?php
+session_start();
+include '../config/database.php';
+include '../src/controllers/TripController.php';
+
+$tripController = new TripController($pdo);
+$trips = $tripController->getUserTrips($_SESSION['user_id']);
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Travel Planner</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<?php include '../src/views/header.php'; ?>
+<h1>Your Trips</h1>
+<form method="post" action="trip.php">
+    <input type="text" name="trip_name" placeholder="Trip Name" required>
+    <input type="date" name="start_date" required>
+    <input type="date" name="end_date" required>
+    <input type="submit" value="Add Trip">
+</form>
+<ul>
+    <?php foreach ($trips as $trip): ?>
+        <li>
+            <?php echo htmlspecialchars($trip['trip_name']); ?> 
+            (<?php echo htmlspecialchars($trip['start_date']); ?> - <?php echo htmlspecialchars($trip['end_date']); ?>)
+        </li>
+    <?php endforeach; ?>
+</ul>
+<a href="logout.php">Logout</a>
+<?php include '../src/views/footer.php'; ?>
+</body>
+</html>
+```
+
+#### `/public/login.php` (ログインページ)
+
+```php
+<?php
+session_start();
+include '../config/database.php';
+include '../src/controllers/AuthController.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $authController = new AuthController($pdo);
+    $result = $authController->login($_POST['username'], $_POST['password']);
+    if ($result) {
+        header('Location: index.php');
+    } else {
+        echo "Invalid credentials.";
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+</head>
+<body>
+<form method="post" action="">
+    Username: <input type="text" name="username" required><br>
+    Password: <input type="password" name="password" required><br>
+    <input type="submit" value="Login">
+</form>
+<a href="register.php">Register</a>
+</body>
+</html>
+```
+
+#### `/public/register.php` (新規登録ページ)
+
+```php
+<?php
+include '../config/database.php';
+include '../src/controllers/AuthController.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $authController = new AuthController($pdo);
+    $authController->register($_POST['username'], $_POST['password'], $_POST['email']);
+    header('Location: login.php');
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register</title>
+</head>
+<body>
+<form method="post" action="">
+    Username: <input type="text" name="username" required><br>
+    Password: <input type="password" name="password" required><br>
+    Email: <input type="email" name="email" required><br>
+    <input type="submit" value="Register">
+</form>
+<a href="login.php">Login</a>
+</body>
+</html>
+```
+
+#### `/public/logout.php` (ログアウト処理)
+
+```php
+<?php
+session_start();
+session_unset();
+session_destroy();
+header('Location: login.php');
+?>
+```
+
+#### `/public/trip.php` (旅行追加処理)
+
+```php
+<?php
+session_start();
+include '../config/database.php';
+include '../src/controllers/TripController.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $tripController = new TripController($pdo);
+    $tripController->addTrip($_SESSION['user_id'], $_POST['trip_name'], $_POST['start_date'], $_POST['end_date']);
+    header('Location: index.php');
+}
+?>
+```
+
+#### `/src/controllers/AuthController.php` (認証コントローラ)
+
+```php
+<?php
+class AuthController {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    public function register($username, $password, $email) {
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $this->pdo->prepare("INSERT INTO users (username, password, email) VALUES (?, ?, ?)");
+        $stmt->execute([$username, $passwordHash, $email]);
+    }
+
+    public function login($username, $password) {
+        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE username = ?");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $user && password_verify($password, $user['password']);
+    }
+}
+?>
+```
+
+#### `/src/controllers/TripController.php` (旅行コントローラ)
+
+```php
+<?php
+class TripController {
+    private $pdo;
+
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+
+    public function addTrip($userId, $tripName, $startDate, $endDate) {
+        $stmt = $this->pdo->prepare("INSERT INTO trips (user_id, trip_name, start_date, end_date) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$userId, $tripName, $startDate, $endDate]);
+    }
+
+    public function getUserTrips($userId) {
+        $stmt = $this->pdo->prepare("SELECT * FROM trips WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+}
+?>
+```
+
+#### `/src/models/User.php` (ユーザーモデル)
+
+```php
+<?php
+class User {
+    private $pdo;
+    
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+    
+    // ユーザー関連のメソッドを追加
+}
+?>
+```
+
+#### `/src/models/Trip.php` (旅行モデル)
+
+```php
+<?php
+class Trip {
+    private $pdo;
+    
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
+    }
+    
+    // 旅行関連のメソッドを追加
+}
+?>
+```
+
+#### `/src/views/header.php` (ヘッダー)
+
+```php
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Travel Planner</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header>
+    <h1>Travel Planner</h1>
+    <nav>
+        <a href="index.php">Home</a>
+        <a href="logout.php">Logout</a>
+    </nav>
+</header>
+```
+
+#### `/src/views/footer.php` (フッター)
+
+```php
+<footer>
+    <p>&copy; <?php echo date("Y"); ?> Travel Planner</p>
+</footer>
+</body>
+</html>
+```
+
+#### `/src/views/trip_form.php` (旅行フォームビュー)
+
+```php
+<form method="post" action="trip.php">
+    <input type="text" name="trip_name" placeholder="Trip Name" required>
+    <input type="date" name="start_date" required>
+    <input type="date" name="end_date" required>
+    <input type="submit" value="Add Trip">
+</form>
+```
+
+#### `/config/database.php` (データベース接続設定)
+
+```php
+<?php
+$host = 'localhost';
+$db = 'travel_planner';
+$user = 'root'; // MySQLのユーザー名
+$pass = ''; // MySQLのパスワード
+
+try {
+    $pdo = new PDO("mysql:host=$host;
+
+dbname=$db;charset=utf8", $user, $pass);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
+}
+?>
+```
+
+#### `/public/css/styles.css` (スタイルシート)
+
+```css
+body {
+    font-family: Arial, sans-serif;
+}
+
+header {
+    background: #f4f4f4;
+    padding: 10px;
+}
+
+nav a {
+    margin: 0 10px;
+    text-decoration: none;
+}
+
+form {
+    margin: 20px 0;
+}
+
+footer {
+    background: #f4f4f4;
+    padding: 10px;
+    text-align: center;
+}
+```
+
+#### `/public/js/scripts.js` (JavaScriptファイル)
+
+```javascript
+// JavaScriptコード（例: ドラッグ＆ドロップの機能）
+// このファイルは後で必要に応じて追加できます。
+```
+
+#### `.htaccess` (Apache設定ファイル)
+
+```apache
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /public/$1 [L]
+```
+
+#### `composer.json` (Composer設定ファイル)
+
+```json
+{
+    "require": {
+        "php": ">=7.4",
+        "monolog/monolog": "^2.0"
+    }
+}
+```
+
+#### `README.md` (プロジェクト説明)
+
+```markdown
+# Travel Planner
+
+## Overview
+
+A simple travel planning application that allows users to manage multiple trips, add plans to each trip, and upload photos.
+
+## Installation
+
+1. Clone the repository.
+2. Run `composer install` to install dependencies.
+3. Set up the database using the provided SQL script.
+4. Configure database settings in `config/database.php`.
+
+## Usage
+
+- Register a new account.
+- Log in and start adding trips.
+- Manage and view your trips and plans.
+
+## License
+
+This project is licensed under the MIT License.
+```
+
+これで、基本的な旅行計画アプリケーションのディレクトリ構造と主要なファイルが整いました。これをベースに、さらに機能を追加したり、デザインをカスタマイズしたりできます。
