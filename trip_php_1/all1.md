@@ -1124,3 +1124,70 @@ class Plan {
 - **delete($planId)**: 指定した予定IDに関連する予定を削除します。
 
 これらのクラスを使うことで、旅行に関連する予定の管理が容易になります。コントローラとモデルの分離により、ビジネスロジックとデータ処理が整理され、コードの保守性が向上します。
+
+## /src/views/plan_form.phpを見せてください
+
+以下は、`/src/views/plan_form.php` のサンプルです。このビューは、ユーザーが旅行の予定を追加または編集するためのフォームを提供します。フォームには、タイトル、説明、日付などのフィールドが含まれています。
+
+### `/src/views/plan_form.php`
+
+```php
+<?php
+// 予定の詳細が渡されている場合（編集用）
+$planId = isset($plan) ? $plan['id'] : '';
+$tripId = isset($plan) ? $plan['trip_id'] : $tripId;
+$title = isset($plan) ? $plan['title'] : '';
+$description = isset($plan) ? $plan['description'] : '';
+$date = isset($plan) ? $plan['date'] : '';
+$action = isset($plan) ? 'update' : 'add';
+?>
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $action === 'update' ? 'Edit Plan' : 'Add Plan'; ?></title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <h1><?php echo $action === 'update' ? 'Edit Plan' : 'Add Plan'; ?></h1>
+    </header>
+
+    <main>
+        <form action="/handle_plan.php" method="post">
+            <input type="hidden" name="action" value="<?php echo $action; ?>">
+            <?php if ($action === 'update'): ?>
+                <input type="hidden" name="id" value="<?php echo htmlspecialchars($planId); ?>">
+            <?php endif; ?>
+            <input type="hidden" name="trip_id" value="<?php echo htmlspecialchars($tripId); ?>">
+
+            <label for="title">Title:</label>
+            <input type="text" id="title" name="title" value="<?php echo htmlspecialchars($title); ?>" required>
+
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" required><?php echo htmlspecialchars($description); ?></textarea>
+
+            <label for="date">Date:</label>
+            <input type="date" id="date" name="date" value="<?php echo htmlspecialchars($date); ?>" required>
+
+            <button type="submit"><?php echo $action === 'update' ? 'Update Plan' : 'Add Plan'; ?></button>
+        </form>
+    </main>
+
+    <footer>
+        <p><a href="/index.php">Back to Trip List</a></p>
+    </footer>
+</body>
+</html>
+```
+
+### 説明
+
+- **`$plan`**: もし `plan` 変数が設定されていれば、編集用のデータを表示します。設定されていなければ、空のフィールドで新規追加フォームを表示します。
+- **`$planId`, `$tripId`, `$title`, `$description`, `$date`**: フォームのフィールドに表示する値を設定します。これらの値は、`$plan` 変数から取得されるか、空の状態でフォームが表示されます。
+- **`$action`**: フォームの送信アクションを決定します。`update` または `add` によって、処理する内容が異なります。
+- **フォームのアクション**: `/handle_plan.php` に POST リクエストを送信します。このファイルでは、追加または更新の処理が行われることを前提としています。
+
+このファイルは、ユーザーに旅行の予定を追加または編集するためのインターフェースを提供し、フォームのデータはサーバーサイドで処理されるための準備をしています。必要に応じて、デザインや機能をカスタマイズできます。
